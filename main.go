@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 	"log"
-	"math/rand"
 	"net/http"
-	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"golang.org/x/crypto/bcrypt"
 )
 
 //Account Struct(model)
@@ -55,7 +55,7 @@ func createAccount(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var account Account
 	_ = json.NewDecoder(r.Body).Decode(&account)
-	account.Id = strconv.Itoa(rand.Intn(10-3+1) + 3)
+	account.Id = uuid.New().String() //insert uuid
 	accounts = append(accounts, account)
 	json.NewEncoder(w).Encode(account)
 }
@@ -89,12 +89,30 @@ func deleteAccount(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(accounts)
 }
 
+//create a hash for the secret
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
+}
+
+//create uuid for accounts
+
 func main() {
 	//initialize the router
 	r := mux.NewRouter()
 
-	//data, having trouble with the date mock
-	accounts = append(accounts, Account{Id: "1", Name: "Boris Fausto", Cpf: 12355567812, Secret: "LesPassword", Balance: 100000, Created_at: time.Now()})
+	hash, err := HashPassword("LesPassword")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//data
+	accounts = append(accounts, Account{Id: "1", Name: "Boris Fausto", Cpf: 12355567812, Secret: hash, Balance: 100000, Created_at: time.Now()})
 
 	//call router handlers(the functions) and establish endpoints(the route)
 	r.HandleFunc("/accounts", getAccounts).Methods("GET")
